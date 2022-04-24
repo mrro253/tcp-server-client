@@ -1,7 +1,9 @@
 import socket
+import os
+import tqdm
 
 IP = "localhost"
-PORT = 4282
+PORT = 4281
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
@@ -21,16 +23,27 @@ def main():
             client.sendall(f"{command}{SEPARATOR}{IP}{SEPARATOR}{PORT}".encode())
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
+
         if (command == "UPLOAD"):
-            file = open(userInput[1], "r")
-            data = file.read()
-
-            client.sendall(f"{command}{SEPARATOR}{userInput[1]}".encode())
-
+            filename = userInput[1]
+            filesize = os.path.getsize(filename)
+            print("Filesize: ", filesize)
+            client.sendall(f"{command}{SEPARATOR}{filename}{SEPARATOR}{filesize}".encode())
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
 
-            client.send(data.encode(FORMAT))
+            progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor=1024)
+            bytes_sent = 0
+            with open(filename, "rb") as file:
+                while bytes_sent < filesize:
+                    data = file.read(SIZE)
+                    if not data:
+                        break
+                    client.sendall(data)
+                    progress.update(len(data))
+                    bytes_sent += SIZE
+                progress.close()
+            print("waiting after send")
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
             file.close()
