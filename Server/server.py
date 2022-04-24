@@ -1,8 +1,9 @@
+import os
 import socket
 import tqdm
 
 IP = "localhost"
-PORT = 4281
+PORT = 4280
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
@@ -21,6 +22,7 @@ def main():
         command = token[0]
         print("[RECV] Command received.")
         print("Command:", command)
+
         if (command == "UPLOAD"):
             print("upload")
             filename = token[1]
@@ -45,6 +47,28 @@ def main():
             print(f"[RECV] File data received.")
             conn.send("File data received.".encode(FORMAT))
             file.close()
+
+        if (command == "DOWNLOAD"):
+            filename = token[1]
+            filesize = os.path.getsize("server_data/"+filename)
+            conn.sendall(f"{filename}{SEPARATOR}{filesize}".encode(FORMAT))
+            msg = conn.recv(SIZE).decode(FORMAT)
+            print(f"[CLIENT]: {msg}")
+
+            progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor = 1024)
+            bytes_sent = 0
+            with open("server_data/"+filename, "rb") as file:
+                while bytes_sent < filesize:
+                    data = file.read(SIZE)
+                    if not data:
+                        break
+                    conn.sendall(data)
+                    progress.update(len(data))
+                    bytes_sent += SIZE
+                progress.close()
+                msg = conn.recv(SIZE).decode(FORMAT)
+                print(f"[CLIENT]: {msg}")
+                file.close()
 
         elif (command == "CONNECT"):
             print("Getting connect.")

@@ -3,7 +3,7 @@ import os
 import tqdm
 
 IP = "localhost"
-PORT = 4281
+PORT = 4280
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
@@ -27,7 +27,6 @@ def main():
         if (command == "UPLOAD"):
             filename = userInput[1]
             filesize = os.path.getsize(filename)
-            print("Filesize: ", filesize)
             client.sendall(f"{command}{SEPARATOR}{filename}{SEPARATOR}{filesize}".encode())
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
@@ -43,10 +42,35 @@ def main():
                     progress.update(len(data))
                     bytes_sent += SIZE
                 progress.close()
-            print("waiting after send")
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
             file.close()
+
+        if command == "DOWNLOAD":
+            filename = userInput[1]
+            client.sendall(f"{command}{SEPARATOR}{filename}".encode())
+            msg = client.recv(SIZE).decode(FORMAT)
+            print(f"[SERVER]: {msg}")
+            othermsg = msg.split(SEPARATOR)
+            filesize = int(othermsg[1])
+            client.send("Ready to receive file".encode(FORMAT))
+
+            progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor = 1024)
+            recv_size = 0
+            with open(filename, "wb") as f:
+                while recv_size < filesize:
+                    data = client.recv(SIZE)
+                    if not data:
+                        break
+                    f.write(data)
+                    progress.update(len(data))
+                    recv_size += SIZE
+                progress.close()
+
+            print(f"[RECV] File data received.")
+            client.send("File data received.".encode(FORMAT))
+            f.close()
+
         if command == "QUIT":
             client.send(userInput.encode(FORMAT))
             msg = client.recv(SIZE).decode(FORMAT)
