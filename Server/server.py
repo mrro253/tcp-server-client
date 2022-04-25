@@ -4,7 +4,7 @@ import tqdm
 import time
 
 IP = "localhost"
-PORT = 4281
+PORT = 4280
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
@@ -22,6 +22,10 @@ def main():
         token = token.split(SEPARATOR)
         command = token[0]
         print(f"[RECV]: {command} received.")
+
+        if command == "CONNECT":
+            print("Getting connect.")
+            conn.send("Connection established".encode(FORMAT))
 
         if command == "DELETE":
             filename = token[1]
@@ -50,15 +54,21 @@ def main():
             file.close()
 
         if command == "DOWNLOAD":
-            filename = token[1]
-            filesize = os.path.getsize("server_data/"+filename)
-            conn.sendall(f"{filename}{SEPARATOR}{filesize}".encode(FORMAT))
-            msg = conn.recv(SIZE).decode(FORMAT)
-            print(f"[CLIENT]: {msg}")
+            try:
+                filename = token[1]
+                filesize = os.path.getsize("server_data/" + filename)
+                conn.sendall(f"{filename}{SEPARATOR}{filesize}".encode(FORMAT))
+                msg = conn.recv(SIZE).decode(FORMAT)
+                print(f"[CLIENT]: {msg}")
 
-            progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor=1024)
-            bytes_sent = 0
-            with open("server_data/"+filename, "rb") as file:
+                progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True,
+                                     unit_divisor=1024)
+                bytes_sent = 0
+                file = open("server_data"+filename, "rb")
+            except FileNotFoundError:
+                conn.send("Error".encode(FORMAT))
+                continue
+            else:
                 while bytes_sent < filesize:
                     data = file.read(SIZE)
                     if not data:
@@ -84,10 +94,6 @@ def main():
                 msg = file + "  Size: " + str(ind_size) + " Bytes"\
                       + "  Created on: " + str(created_on) + '\n'
                 conn.send(msg.encode(FORMAT))
-
-        if command == "CONNECT":
-            print("Getting connect.")
-            conn.send("Connection established".encode(FORMAT))
 
         if command == "QUIT":
             conn.send("Connection closed.".encode(FORMAT))
