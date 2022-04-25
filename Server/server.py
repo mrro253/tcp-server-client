@@ -33,7 +33,7 @@ def main():
             filesize = int(token[2])
             conn.send("Filename received".encode(FORMAT))
 
-            progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor = 1024)
+            progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
             recv_size = 0
             with open("server_data/"+filename, "wb") as file:
                 while recv_size < filesize:
@@ -56,7 +56,7 @@ def main():
             msg = conn.recv(SIZE).decode(FORMAT)
             print(f"[CLIENT]: {msg}")
 
-            progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor = 1024)
+            progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True, unit_divisor=1024)
             bytes_sent = 0
             with open("server_data/"+filename, "rb") as file:
                 while bytes_sent < filesize:
