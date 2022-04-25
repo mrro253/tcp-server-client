@@ -1,9 +1,10 @@
 import os
 import socket
 import tqdm
+import time
 
 IP = "localhost"
-PORT = 4280
+PORT = 4281
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
@@ -13,18 +14,21 @@ def main():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(ADDR)
     server.listen()
-    print("[Listening]")
+    print(f"[Listening on port {PORT}]")
     conn, addr = server.accept()
     print(f"[NEW CONNECTION] {addr} connected.")
     while True:
         token = conn.recv(SIZE).decode(FORMAT)
         token = token.split(SEPARATOR)
         command = token[0]
-        print("[RECV] Command received.")
-        print("Command:", command)
+        print(f"[RECV]: {command} received.")
 
-        if (command == "UPLOAD"):
-            print("upload")
+        if command == "DELETE":
+            filename = token[1]
+            os.remove('server_data/' + filename)
+            conn.sendall(f"{filename} successfully deleted.".encode(FORMAT))
+
+        if command == "UPLOAD":
             filename = token[1]
             filesize = int(token[2])
             conn.send("Filename received".encode(FORMAT))
@@ -32,14 +36,11 @@ def main():
             progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor = 1024)
             recv_size = 0
             with open("server_data/"+filename, "wb") as file:
-                print("Waiting")
                 while recv_size < filesize:
                     data = conn.recv(SIZE)
-                    print("Received")
                     if not data:
                         break
                     file.write(data)
-                    print("Wrote")
                     progress.update(len(data))
                     recv_size += SIZE
                 progress.close()
@@ -48,7 +49,7 @@ def main():
             conn.send("File data received.".encode(FORMAT))
             file.close()
 
-        if (command == "DOWNLOAD"):
+        if command == "DOWNLOAD":
             filename = token[1]
             filesize = os.path.getsize("server_data/"+filename)
             conn.sendall(f"{filename}{SEPARATOR}{filesize}".encode(FORMAT))
@@ -70,15 +71,30 @@ def main():
                 print(f"[CLIENT]: {msg}")
                 file.close()
 
-        elif (command == "CONNECT"):
+        if command == "DIR":
+            files = os.listdir("server_data")
+            num_files = str(len(files))
+            conn.send(num_files.encode(FORMAT))
+            green_light = conn.recv(SIZE).decode(FORMAT)
+            for file in files:
+                created_on_big = os.path.getctime("server_data/"+file)
+                created_on = time.ctime(created_on_big)
+
+                ind_size = os.path.getsize("server_data/"+file)
+                msg = file + "  Size: " + str(ind_size) + " Bytes"\
+                      + "  Created on: " + str(created_on) + '\n'
+                conn.send(msg.encode(FORMAT))
+
+        if command == "CONNECT":
             print("Getting connect.")
             conn.send("Connection established".encode(FORMAT))
-        elif command == "QUIT":
-            conn.send("Connection closed.")
+
+        if command == "QUIT":
+            conn.send("Connection closed.".encode(FORMAT))
             conn.close()
             print(f"[DISCONNECTED] {addr} disconnected")
-        else:
-            print("idk")
+            break
+
 
 if __name__ == "__main__":
     main()

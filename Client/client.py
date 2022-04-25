@@ -2,9 +2,6 @@ import socket
 import os
 import tqdm
 
-IP = "localhost"
-PORT = 4280
-ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
 SEPARATOR ="<SEPARATOR>"
@@ -14,15 +11,21 @@ def main():
         userInput = input(">")
         userInput = userInput.split(" ")
         command = userInput[0]
-        print(userInput)
         if (command == "CONNECT"):
             IP = userInput[1]
-            PORT = userInput[2]
+            PORT = int(userInput[2])
+            ADDR = (IP, PORT)
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect(ADDR)
             client.sendall(f"{command}{SEPARATOR}{IP}{SEPARATOR}{PORT}".encode())
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
+
+        if command == "DELETE":
+            filename = userInput[1]
+            client.sendall(f"{command}{SEPARATOR}{filename}".encode(FORMAT))
+            confirmation = client.recv(SIZE).decode(FORMAT)
+            print("[SERVER]: " + confirmation)
 
         if (command == "UPLOAD"):
             filename = userInput[1]
@@ -71,11 +74,19 @@ def main():
             client.send("File data received.".encode(FORMAT))
             f.close()
 
+        if command == "DIR":
+            client.send(command.encode(FORMAT))
+            num_files = client.recv(SIZE).decode(FORMAT)
+            client.send("Ready for DIR.".encode(FORMAT))
+            for i in range(int(num_files)):
+                print(client.recv(SIZE).decode(FORMAT))
+
         if command == "QUIT":
-            client.send(userInput.encode(FORMAT))
+            client.send(command.encode(FORMAT))
             msg = client.recv(SIZE).decode(FORMAT)
             print(f"[SERVER]: {msg}")
             client.close()
+            break
 
 if __name__ == "__main__":
     main()
